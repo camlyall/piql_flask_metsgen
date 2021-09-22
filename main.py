@@ -35,7 +35,7 @@ def metsroute():
         if file_path:
             if os.path.isdir(file_path):
                 mets = create_mets(file_path.replace('\\', '/'))
-                return mets.tostring()
+                return mets.tostring(), 201
             else:
                 return "Not a valid directory", 400
         else:
