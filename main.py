@@ -37,9 +37,9 @@ def metsroute():
             mets = create_mets(file_path.replace('\\', '/'))
             return str(mets.all_files())
         else:
-            return "Not a valid directory"
+            return "Not a valid directory", 400
     else:
-        return "Enter directory"
+        return "Enter directory", 404
 
 
 @app.route("/")
