@@ -8,7 +8,6 @@ app = Flask(__name__)
 
 
 def create_mets(directory):
-    print(directory)
     mets = metsrw.METSDocument()
     fse = create_fse(directory)
     mets.append(fse)
