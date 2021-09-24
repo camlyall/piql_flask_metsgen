@@ -27,20 +27,17 @@ def create_fse(directory):
     return fse_directory
 
 
-@app.route("/mets", methods=["POST", "GET"])
+@app.route("/mets", methods=["POST"])
 def metsroute():
-    if request.method == 'POST':
-        file_path = request.args.get("filepath", None)
-        if file_path:
-            if os.path.isdir(file_path):
-                mets = create_mets(file_path.replace('\\', '/'))
-                return mets.tostring(), 201
-            else:
-                return "Not a valid directory", 400
+    file_path = request.args.get("filepath", None)
+    if file_path:
+        if os.path.isdir(file_path):
+            mets = create_mets(file_path.replace('\\', '/'))
+            return mets.tostring(), 201
         else:
-            return "Enter directory", 404
+            return "Not a valid directory", 400
     else:
-        return "Something else"
+        return "Enter directory", 404
 
 
 @app.route("/")
