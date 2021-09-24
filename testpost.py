@@ -2,7 +2,7 @@ import requests
 import metsrw
 
 if __name__ == '__main__':
-    file_path_to_send = "C:/Users/Cameron/Documents/01538a96-c96e-4334-ad72-7934a7a22553/data/objects"
+    file_path_to_send = "sample_input/01538a96-c96e-4334-ad72-7934a7a22553/data/objects"
     response_text = requests.post(f'http://localhost:5000/mets?filepath={file_path_to_send}')
     print(response_text.text)
     print(response_text.text.encode())
