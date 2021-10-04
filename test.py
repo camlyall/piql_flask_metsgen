@@ -15,7 +15,16 @@ class FlaskTestCase(unittest.TestCase):
         response = tester.post(f'/mets?filepath={file_path_to_send}')
         self.assertEqual(response.status_code, 201)
 
+    def test_metsgen_incorrectpath(self):
+        tester = app.test_client(self)
+        response = tester.post('/mets?filepath="not/a/file/path')
+        self.assertEqual(response.status_code, 400)
+
+    def test_metsgen_nofilepath(self):
+        tester = app.test_client(self)
+        response = tester.post('/mets')
+        self.assertEqual(response.status_code, 404)
+
 
 if __name__ == '__main__':
     unittest.main()
-    
