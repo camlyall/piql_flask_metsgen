@@ -94,9 +94,9 @@ def create_premis_dmdsec(directory):
 def create_dublincore_dmdsec(metadata):
 
     dmd_metadata = '<dcterms:dublincore xmlns:dc="http://purl.org/dc/elements/1.1/" ' \
-                   'xmlns:dcterms="http://purl.org/dc/terms/" ' \
-                   'xsi:schemaLocation="http://purl.org/dc/terms/ ' \
-                   'https://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd">'
+                   'xmlns:dcterms="http://purl.org/dc/terms/">' \
+                   # 'xsi:schemaLocation="http://purl.org/dc/terms/ ' \
+                   # 'https://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd">'
     for key in metadata:
         dmd_metadata += f"\t<{key}>{metadata[key]}</{key}>\n"
     dmd_metadata += "</dcterms:dublincore>"
