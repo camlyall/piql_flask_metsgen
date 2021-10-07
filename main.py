@@ -4,34 +4,77 @@ import uuid
 from flask import Flask, request, render_template
 import metsrw
 import metsrw.plugins.premisrw as premisrw
+from lxml import etree
+
+import metsrw_override
 
 app = Flask(__name__)
 
 
-def create_fse(directory):
-    fse_directory = metsrw.FSEntry(label=os.path.basename(directory), path="test", type="Directory", file_uuid=str(uuid.uuid4()))
+def create_fse(directory, metadata, is_root=True):
+    """
+    Recursive function to create FSEntry tree for IP
+    :param dict metadata: Add metadata to relevant FSEntry
+    :param bool is_root: Ensure premis dmd only added to root FSEntry
+    :param str directory:
+    :return FSEntry: Root FSEntry containing all child nodes
+    """
+    base_directory = os.path.basename(directory)
+    fse = metsrw.FSEntry(label=base_directory, type="Directory", file_uuid=str(uuid.uuid4()))
+    if is_root:
+        fse.add_dmdsec(create_premis_dmdsec(directory), mdtype='PREMIS:OBJECT')
+
+    # Add metadata if present
+    if base_directory in metadata.keys():
+        fse.add_dublin_core(create_dublincore_dmdsec(metadata[base_directory]))
+
     for file in os.listdir(directory):
         file_path = os.path.join(directory, file).replace('\\', '/')
         if os.path.isdir(file_path):
-            fse_directory.children.append(create_fse(file_path))
-        else:
-            fse_file = metsrw.FSEntry(label=file, path=file_path, type="Item", file_uuid=str(uuid.uuid4()))
-            fse_directory.children.append(fse_file)
-    return fse_directory
+            # Avoid adding data directory
+            if file == 'data':
+                for sub_file in os.listdir(file_path):
+                    fse.children.append(create_fse(os.path.join(file_path, sub_file), metadata, is_root=False))
+            else:
+                fse.children.append(create_fse(file_path, metadata, is_root=False))
+
+        elif '/objects/' in file_path:
+            if '/objects/metadata/' in file_path:
+                fse_use = "metadata"
+            elif '/objects/submissionDocumentation/' in file_path:
+                fse_use = "submissionDocumentation"
+            else:
+                fse_use = "original"
+            file_fse = metsrw.FSEntry(use=fse_use, label=file, path=file_path[file_path.index('objects/'):],
+                                      type="Item", file_uuid=str(uuid.uuid4()))
+            # Add metadata if present
+            if file in metadata.keys():
+                file_fse.add_dublin_core(create_dublincore_dmdsec(metadata[file]))
+            fse.children.append(file_fse)
+    return fse
 
 
 def extract_metadata(directory):
-    results = []
-    with open(directory, 'r') as metadata_file:
-        for line in metadata_file:
-            data = line.strip().split(',')
-            results.append((data[0], data[1:]))
-    return results
+    """
+    Extracts the data from compliant metadata.csv in metadata directory
+    :param str directory:
+    :return dict metadata_dict: in the form {baseDirectory : {title : value, ...} }
+    """
+    metadata_dict = {}
+    if os.path.isfile(directory):
+        with open(directory, 'r') as metadata_file:
+            keys = metadata_file.readline().strip().split(',')
+            for line in metadata_file:
+                values = line.strip().split(',')
+                base_directory = values[0].split('/')[-1]
+                metadata_dict[base_directory] = {}
+                for i in range(1, len(keys)):
+                    metadata_dict[base_directory][keys[i]] = values[i]
+    return metadata_dict
 
 
 def create_premis_dmdsec(directory):
     root_directory_name = os.path.basename(directory)
-
     premis_data = premisrw.premis.data_to_premis((
         'object',
         premisrw.premis.utils.PREMIS_META,
@@ -43,26 +86,22 @@ def create_premis_dmdsec(directory):
         (
             ('original_name', root_directory_name)
         )
-    ))
+    ), premis_version=premisrw.utils.PREMIS_VERSION)
+
     return premis_data
 
 
-def create_dublincore_dmdsec(directory):
-    return
+def create_dublincore_dmdsec(metadata):
 
-
-def add_dublinecore_dmdsec(fse, headers, metadata):
     dmd_metadata = '<dcterms:dublincore xmlns:dc="http://purl.org/dc/elements/1.1/" ' \
-                   'xmlns:dcterms="http://purl.org/dc/terms/">\n'
-    # 'xsi:schemaLocation="https://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd">\n'
-    for i in range(len(headers[1])):
-        current_header = headers[1][i]
-        current_value = metadata[1][i]
-        dmd_metadata += f"\t<{current_header}>{current_value}</{current_header}>\n"
+                   'xmlns:dcterms="http://purl.org/dc/terms/" ' \
+                   'xsi:schemaLocation="http://purl.org/dc/terms/ ' \
+                   'https://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd">'
+    for key in metadata:
+        dmd_metadata += f"\t<{key}>{metadata[key]}</{key}>\n"
     dmd_metadata += "</dcterms:dublincore>"
 
-    fse.add_dublin_core(dmd_metadata)
-    return fse
+    return dmd_metadata
 
 
 def find_metadata_file(directory):
@@ -80,27 +119,29 @@ def metsroute():
     file_path = request.args.get("filepath", None)
     if file_path:
         if os.path.isdir(file_path):
-            root_directory_name = os.path.basename(file_path)
+            base_directory = os.path.basename(file_path)
             objects_path = os.path.join(file_path, "data", "objects").replace('\\', '/')
             if os.path.isdir(objects_path):
 
-                mets = metsrw.METSDocument()
-                fse = create_fse(objects_path)
+                # Update premis version from 2.2 to 3.0
+                premisrw.utils.PREMIS_VERSION = premisrw.utils.PREMIS_3_0_VERSION
+                premisrw.utils.NAMESPACES = premisrw.utils.PREMIS_VERSIONS_MAP[premisrw.utils.PREMIS_VERSION]["namespaces"]
+                premisrw.utils.PREMIS_META = premisrw.utils.PREMIS_VERSIONS_MAP[premisrw.utils.PREMIS_VERSION]["meta"]
+                premisrw.utils.PREMIS_SCHEMA_LOCATION = premisrw.utils.PREMIS_3_0_SCHEMA_LOCATION
 
-                fse.add_dmdsec(create_premis_dmdsec(file_path), mdtype='PREMIS:OBJECT')
+                metsrw.METSDocument = metsrw_override.METSDocument
+                metsrw.FSEntry = metsrw_override.FSEntry
+
+                mets = metsrw.METSDocument()
 
                 # Find and add Metadata
-                metadata_path = find_metadata_file(os.path.join(objects_path, "metadata"))
-                if metadata_path:
-                    metadata = extract_metadata(metadata_path)
-                    if len(metadata) > 1:
-                        for line in metadata[1:]:
-                            fse = add_dublinecore_dmdsec(fse, metadata[0], line)
-                    else:
-                        print("No metadata in file")
-                else:
-                    print("No metadata file")
+                metadata = {}
+                if os.path.isdir(os.path.join(objects_path, "metadata")):
+                    metadata_path = find_metadata_file(os.path.join(objects_path, "metadata"))
+                    if metadata_path:
+                        metadata = extract_metadata(metadata_path)
 
+                fse = create_fse(file_path, metadata)
                 mets.append(fse)
 
                 return mets.tostring(), 201, {'Content-Type': 'application/xml; charset=utf-8'}
