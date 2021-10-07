@@ -4,7 +4,6 @@ import uuid
 from flask import Flask, request, render_template
 import metsrw
 import metsrw.plugins.premisrw as premisrw
-from lxml import etree
 
 import metsrw_override
 
@@ -21,8 +20,10 @@ def create_fse(directory, metadata, is_root=True):
     """
     base_directory = os.path.basename(directory)
     fse = metsrw.FSEntry(label=base_directory, type="Directory", file_uuid=str(uuid.uuid4()))
+
+    # Add premis data to root folder
     if is_root:
-        fse.add_dmdsec(create_premis_dmdsec(directory), mdtype='PREMIS:OBJECT')
+        fse.add_dmdsec(create_premis_dmdsec(base_directory), mdtype='PREMIS:OBJECT')
 
     # Add metadata if present
     if base_directory in metadata.keys():
@@ -37,7 +38,6 @@ def create_fse(directory, metadata, is_root=True):
                     fse.children.append(create_fse(os.path.join(file_path, sub_file), metadata, is_root=False))
             else:
                 fse.children.append(create_fse(file_path, metadata, is_root=False))
-
         elif '/objects/' in file_path:
             if '/objects/metadata/' in file_path:
                 fse_use = "metadata"
@@ -57,7 +57,7 @@ def create_fse(directory, metadata, is_root=True):
 def extract_metadata(directory):
     """
     Extracts the data from compliant metadata.csv in metadata directory
-    :param str directory:
+    :param str directory: location of metadata.csv file
     :return dict metadata_dict: in the form {baseDirectory : {title : value, ...} }
     """
     metadata_dict = {}
@@ -74,7 +74,11 @@ def extract_metadata(directory):
 
 
 def create_premis_dmdsec(directory):
-    root_directory_name = os.path.basename(directory)
+    """
+    Create premis data with root folder name and new uuid
+    :param str directory: root directory name
+    :return: premis data
+    """
     premis_data = premisrw.premis.data_to_premis((
         'object',
         premisrw.premis.utils.PREMIS_META,
@@ -84,15 +88,18 @@ def create_premis_dmdsec(directory):
             ('object_identifier_value', str(uuid.uuid4())),
         ),
         (
-            ('original_name', root_directory_name)
+            ('original_name', directory)
         )
     ), premis_version=premisrw.utils.PREMIS_VERSION)
-
     return premis_data
 
 
 def create_dublincore_dmdsec(metadata):
-
+    """
+    Create the dublin core dmd string to return and add as dmdsec to FSEntry for given folder/file
+    :param dict metadata: dictionary of extracted metadata for folder/file
+    :return str dmd_metadata: dublin core xml data for the given folder/file
+    """
     dmd_metadata = '<dcterms:dublincore xmlns:dc="http://purl.org/dc/elements/1.1/" ' \
                    'xmlns:dcterms="http://purl.org/dc/terms/">' \
                    # 'xsi:schemaLocation="http://purl.org/dc/terms/ ' \
@@ -100,11 +107,15 @@ def create_dublincore_dmdsec(metadata):
     for key in metadata:
         dmd_metadata += f"\t<{key}>{metadata[key]}</{key}>\n"
     dmd_metadata += "</dcterms:dublincore>"
-
     return dmd_metadata
 
 
 def find_metadata_file(directory):
+    """
+    Find presence of metadata.csv in metadata folder and sub-folders
+    :param str directory: metadata folder directory to search within
+    :return: return the location of metadata.csv
+    """
     for file in os.listdir(directory):
         file_directory = os.path.join(directory, file)
         if os.path.isdir(file_directory):
@@ -119,7 +130,6 @@ def metsroute():
     file_path = request.args.get("filepath", None)
     if file_path:
         if os.path.isdir(file_path):
-            base_directory = os.path.basename(file_path)
             objects_path = os.path.join(file_path, "data", "objects").replace('\\', '/')
             if os.path.isdir(objects_path):
 
@@ -155,7 +165,6 @@ def metsroute():
 
 @app.route("/")
 def index():
-    # index template here
     return render_template('index.html')
 
 
