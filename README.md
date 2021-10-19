@@ -4,7 +4,7 @@ This project facilitates the generation of compliant METS.xml files for Informat
 
 ## Usage
 
-`python main.py'
+`python3 main.py`
 
 This will start the Flask application
 
@@ -12,6 +12,7 @@ This will start the Flask application
 
 metsrw
 	- `pip install metsrw`
+
 flask
 	- `pip install flask`
 	
