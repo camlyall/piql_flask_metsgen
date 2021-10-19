@@ -154,7 +154,7 @@ def metsroute():
                 fse = create_fse(file_path, metadata)
                 mets.append(fse)
 
-                return mets.tostring(), 201, {'Content-Type': 'application/xml; charset=utf-8'}
+                return mets.tostring(), 200, {'Content-Type': 'application/xml; charset=utf-8'}
             else:
                 return "Not a valid directory", 400
         else:
