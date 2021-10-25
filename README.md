@@ -6,7 +6,7 @@ This project facilitates the generation of compliant METS.xml files for Informat
 
 `python3 main.py`
 
-This will start the Flask application. Flask defaults to post 5000.
+This will start the Flask application. Flask defaults to port 5000.
 
 A valid http request can be made using software such as Postman.\
 Example using the sample input in repository:\
