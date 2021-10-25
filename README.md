@@ -8,9 +8,9 @@ This project facilitates the generation of compliant METS.xml files for Informat
 
 This will start the Flask application
 
-A valid http call can be made using software such as Postman
-Example:
-	POST http://[YOUR-IP]:5005/mets?filepath=sample_input/01538a96-c96e-4334-ad72-7934a7a22553
+A valid http request can be made using software such as Postman.\
+Example using the sample input in repository:\
+POST http://`[YOUR-IP]`:5005/mets?filepath=sample_input/01538a96-c96e-4334-ad72-7934a7a22553
 
 ## Dependencies
 
