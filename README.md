@@ -4,7 +4,7 @@ This project facilitates the generation of compliant METS.xml files for Informat
 
 ## Usage
 
-`python3 main.py`
+`docker-compose up -d`
 
 This will start the Flask application
 
