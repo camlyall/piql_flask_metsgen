@@ -6,11 +6,11 @@ This project facilitates the generation of compliant METS.xml files for Informat
 
 `python3 main.py`
 
-This will start the Flask application
+This will start the Flask application. Flask defaults to post 5000.
 
 A valid http request can be made using software such as Postman.\
 Example using the sample input in repository:\
-POST http://`[YOUR-IP]`:5005/mets?filepath=sample_input/01538a96-c96e-4334-ad72-7934a7a22553
+POST http://localhost:5000/mets?filepath=sample_input/01538a96-c96e-4334-ad72-7934a7a22553
 
 ## Dependencies
 
